@@ -1,16 +1,27 @@
 package engineTester;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 import org.lwjgl.opengl.Display;
 import org.lwjgl.util.vector.Vector3f;
 
 import entities.Camera;
 import entities.Entity;
+import entities.Light;
+import entities.Player;
 import models.RawModel;
 import models.TextureModel;
+import objConverter.ModelData;
+import objConverter.OBJLoader;
 import renderEngine.DisplayManager;
 import renderEngine.Loader;
-import shaders.StaticShader;
+import renderEngine.MasterRenderer;
+import terrains.Terrain;
 import textures.ModelTexture;
+import textures.TerrainTexture;
+import textures.TerrainTexturePack;
 
 /**
  * This class contains the main method and is used to test the engine.
@@ -28,116 +39,122 @@ public class MainGameLoop {
 	 */
 	public static void main(String[] args) {
 		DisplayManager.createDisplay();
-		Loader loader = new Loader();
+		Loader loader = new Loader();		
 		
-		StaticShader shader = new StaticShader();
-	renderEngine.Renderer renderer = new renderEngine.Renderer(shader);
 		
-	float[] vertices = {			
-			-0.5f,0.5f,-0.5f,	
-			-0.5f,-0.5f,-0.5f,	
-			0.5f,-0.5f,-0.5f,	
-			0.5f,0.5f,-0.5f,		
-			
-			-0.5f,0.5f,0.5f,	
-			-0.5f,-0.5f,0.5f,	
-			0.5f,-0.5f,0.5f,	
-			0.5f,0.5f,0.5f,
-			
-			0.5f,0.5f,-0.5f,	
-			0.5f,-0.5f,-0.5f,	
-			0.5f,-0.5f,0.5f,	
-			0.5f,0.5f,0.5f,
-			
-			-0.5f,0.5f,-0.5f,	
-			-0.5f,-0.5f,-0.5f,	
-			-0.5f,-0.5f,0.5f,	
-			-0.5f,0.5f,0.5f,
-			
-			-0.5f,0.5f,0.5f,
-			-0.5f,0.5f,-0.5f,
-			0.5f,0.5f,-0.5f,
-			0.5f,0.5f,0.5f,
-			
-			-0.5f,-0.5f,0.5f,
-			-0.5f,-0.5f,-0.5f,
-			0.5f,-0.5f,-0.5f,
-			0.5f,-0.5f,0.5f
-			
-	};
+		//////////////////////////Yerrain stuffs
+		
+		TerrainTexture backgroundTexture = new TerrainTexture(loader.loadTexture("grassy"));
+		TerrainTexture rTexture = new TerrainTexture(loader.loadTexture("dirt"));
+		TerrainTexture gTexture = new TerrainTexture(loader.loadTexture("flower"));
+		TerrainTexture bTexture = new TerrainTexture(loader.loadTexture("path"));
+		
+		TerrainTexturePack texturePaxkPack = new TerrainTexturePack(backgroundTexture, rTexture, gTexture, bTexture);
+		
+		TerrainTexture blendMap = new TerrainTexture(loader.loadTexture("myMap"));
+		
+		
+		////////////////////////////////////
+			ModelData modelData = OBJLoader.loadOBJ("tree");
+			RawModel treeModel = loader.loadToVao(modelData.getVertices(), 
+			modelData.getTextureCoords(), modelData.getNormals(), modelData.getIndices());
+
+		TextureModel textureModel = new TextureModel(treeModel,new ModelTexture(loader.loadTexture("tree")));
+		
+		
+		ModelData lowPolyTreeData = OBJLoader.loadOBJ("lowPolyTree");
+		RawModel lowPolyTreeRawModel = loader.loadToVao(lowPolyTreeData.getVertices(), 
+				lowPolyTreeData.getTextureCoords(), lowPolyTreeData.getNormals(), lowPolyTreeData.getIndices());
+
+	TextureModel lowPolyTreeModel = new TextureModel(lowPolyTreeRawModel,new ModelTexture(loader.loadTexture("lowPolyTree")));
 	
-	float[] textureCoords = {
-			
-			0,0,
-			0,1,
-			1,1,
-			1,0,			
-			0,0,
-			0,1,
-			1,1,
-			1,0,			
-			0,0,
-			0,1,
-			1,1,
-			1,0,
-			0,0,
-			0,1,
-			1,1,
-			1,0,
-			0,0,
-			0,1,
-			1,1,
-			1,0,
-			0,0,
-			0,1,
-			1,1,
-			1,0
-
-
-			
-	};
+		
 	
-	int[] indices = {
-			0,1,3,	
-			3,1,2,	
-			4,5,7,
-			7,5,6,
-			8,9,11,
-			11,9,10,
-			12,13,15,
-			15,13,14,	
-			16,17,19,
-			19,17,18,
-			20,21,23,
-			23,21,22
+		
+		ModelTexture fernTextureAtlas = new ModelTexture(loader.loadTexture("fern"));
+		fernTextureAtlas.setNumberofRows(2);
+		
+		ModelData fernData = OBJLoader.loadOBJ("fern");
+		RawModel rawFern = loader.loadToVao(fernData.getVertices(), 
+				fernData.getTextureCoords(), fernData.getNormals(), fernData.getIndices());
+		TextureModel fern = new TextureModel(rawFern, fernTextureAtlas);		
+		
+		
+///////////////////////Player
+		ModelData bunnModelData = OBJLoader.loadOBJ("person");
+RawModel bunnyModel = loader.loadToVao(bunnModelData.getVertices(), 
+		bunnModelData.getTextureCoords(), bunnModelData.getNormals(), bunnModelData.getIndices());
+TextureModel playerModel = new TextureModel(bunnyModel, new ModelTexture(loader.loadTexture("playerTexture")));
+Player player = new Player(playerModel, new Vector3f(100,0,-50), 0, 0, 0, 0.2f);
 
+//////////////////
+		
+		
+		
+		ModelTexture treeTexture  = textureModel.getTexture();
+		treeTexture.setShineDamper(10);
+		treeTexture.setReflectivity(0.0f);
+		
+		Light light = new Light(new Vector3f(0,100,0), new Vector3f(1f,1f,1f));
+		Camera camera = new Camera(player);
+		
+		Terrain terrain1 = new Terrain(0, -1, loader, texturePaxkPack, blendMap, "heightmap");
+//		Terrain terrain2 = new Terrain(-1, -1, loader, texturePaxkPack, blendMap,"heightmap");
+		
+		List<Entity> entities = new ArrayList<Entity>();
+		Random random = new Random(676452);
+		for(int i = 0; i<1000;i++) {
+			if(i % 5 == 0) {
+				float X = random.nextFloat() * 800 -40;
+				float Z = random.nextFloat() * -600;
+				float Y = terrain1.getHeightOfTerrain(X, Z);
+				
+				entities.add(new Entity(fern, random.nextInt(4),new Vector3f(X,Y,Z), 0f, 
+						0f, 0f,0.7f));
+			}
+			if(i % 3 == 0) {
+				float X = random.nextFloat() * 800 -40;
+				float Z = random.nextFloat() * -600;
+				float Y = terrain1.getHeightOfTerrain(X, Z);
+				
+				entities.add(new Entity(lowPolyTreeModel, new Vector3f(X,Y,Z), 0f, 
+						0f, 0f,0.2f));
+			}
+			if(i%2 == 0) {
+				float X = random.nextFloat() * 800 -40;
+				float Z = random.nextFloat() * -600;
+				float Y = terrain1.getHeightOfTerrain(X, Z);
+				
+				entities.add(new Entity(textureModel, new Vector3f(X,Y,Z), 0f, 
+						0f, 0f,1f));
+				
+			}
+//			allGrass.add(new Entity(	grassModel, new Vector3f(X,Y,Z), 0f, 
+//					0f, 0f,1f));
+		}
 
-	};
-
-		
-		
-		RawModel model = loader.loadToVao(vertices,textureCoords,indices);
-		ModelTexture texture = new ModelTexture(loader.loadTexture("flower"));
-		TextureModel textureModel = new TextureModel(model,texture);
-		
-		
-		Entity entity = new Entity(textureModel, new Vector3f(0,0,-5) , 0,0,0,1);
-		Camera camera = new Camera();
-		
+		MasterRenderer renderer = new MasterRenderer();
 		while (!Display.isCloseRequested()) {
 //			entity.increasePosition(0.0f, 0,-0.1f);
-//			entity.increaseRotation(0f, 0f, 1f);
+//			entity.increaseRotation(0f, 1f, 0f);
 			camera.move();
-			renderer.prepare();
-			shader.start();
-			shader.loadViewMatrix(camera);
-			// game logic
-			renderer.render(entity ,shader );
-			// render geometry
-			shader.stop();
+			player.Move(terrain1);
+			
+			renderer.processEntity(player);
+			
+			 
+			renderer.processTerrain(terrain1);
+//			renderer.processTerrain(terrain2);
+			renderer.render(light, camera);
+//			renderer.processEntity(entity);
+			
+			for(Entity drag: entities) {
+				
+				renderer.processEntity(drag);
+			}
 			DisplayManager.updateDisplay();
 		}
-		shader.cleanUp();
+		renderer.cleanUp();
 		loader.cleanUp();
 		DisplayManager.closeDisplay();
 	}
